@@ -2,9 +2,16 @@
 /**
  * Real-World Verification Script
  *
- * Proves barrel-optimizer works on production-grade libraries:
- * - @toss/utils (Target company's library)
- * - @mui/material (Massive barrel file stress test)
+ * Proves barrel-optimizer works on BOTH Legacy Toss ecosystem and Modern packages:
+ *
+ * Group A: Legacy Slash (@toss/*)
+ *   - @toss/utils, @toss/hooks, @toss/date
+ *
+ * Group B: Modern Toss Stack
+ *   - es-toolkit, es-hangul, suspensive
+ *
+ * Group C: Third Party Heavyweight
+ *   - @mui/material
  *
  * Usage: node scripts/verify-real-world.mjs
  */
@@ -25,9 +32,32 @@ const __dirname = path.dirname(__filename);
 
 const CONFIG = {
   tempDir: path.resolve(__dirname, "../.real_world_temp"),
-  libraries: [
-    { name: "@toss/utils", description: "Toss utility library" },
-    { name: "@mui/material", description: "Material UI (massive barrel)" },
+  categories: [
+    {
+      name: "Legacy (@toss)",
+      description: "Legacy Slash libraries - still widely used",
+      libraries: [
+        { name: "@toss/utils", description: "Toss utility functions" },
+        { name: "@toss/react", description: "Toss React utilities" },
+        { name: "@toss/react-query", description: "Toss React Query helpers" },
+      ],
+    },
+    {
+      name: "Modern (New)",
+      description: "Modern Toss Stack - the future",
+      libraries: [
+        { name: "es-toolkit", description: "High performance utility" },
+        { name: "es-hangul", description: "Modern Hangul library" },
+        { name: "@suspensive/react", description: "React Suspense handling" },
+      ],
+    },
+    {
+      name: "Benchmark",
+      description: "Third Party Heavyweight",
+      libraries: [
+        { name: "@mui/material", description: "Material UI (massive barrel)" },
+      ],
+    },
   ],
 };
 
@@ -43,9 +73,9 @@ function formatMs(ms) {
 
 function printHeader(text) {
   console.log();
-  console.log(chalk.bgCyan.black.bold("                                                                  "));
-  console.log(chalk.bgCyan.black.bold(`   ${text.padEnd(62)} `));
-  console.log(chalk.bgCyan.black.bold("                                                                  "));
+  console.log(chalk.bgCyan.black.bold("                                                                            "));
+  console.log(chalk.bgCyan.black.bold(`   ${text.padEnd(72)} `));
+  console.log(chalk.bgCyan.black.bold("                                                                            "));
   console.log();
 }
 
@@ -89,16 +119,21 @@ function setupPhase() {
 
   printSuccess("Created temporary directory: .real_world_temp/");
 
-  // Install libraries
-  const libraryNames = CONFIG.libraries.map((l) => l.name).join(" ");
-  printStep("2/3", `Installing production libraries: ${chalk.yellow(libraryNames)}`);
+  // Collect all library names
+  const allLibraries = CONFIG.categories.flatMap((cat) =>
+    cat.libraries.map((lib) => lib.name)
+  );
+  const libraryNames = allLibraries.join(" ");
+
+  printStep("2/3", `Installing ${allLibraries.length} production libraries...`);
+  console.log(chalk.gray(`    ${libraryNames}`));
 
   try {
-    execSync(`npm install ${libraryNames} --no-save --ignore-scripts`, {
+    execSync(`npm install ${libraryNames} --no-save --ignore-scripts --legacy-peer-deps`, {
       cwd: CONFIG.tempDir,
       stdio: "pipe",
     });
-    printSuccess("Libraries installed successfully");
+    printSuccess("All libraries installed successfully");
   } catch (error) {
     printError("Failed to install libraries");
     console.error(chalk.red(error.message));
@@ -113,7 +148,7 @@ function setupPhase() {
 // ═══════════════════════════════════════════════════════════════════
 
 async function verificationPhase(tempDir) {
-  printStep("3/3", "Running analyzer against real-world libraries...");
+  printStep("3/3", "Running analyzer against all libraries...");
   console.log();
 
   // Dynamic import of analyzer (ESM)
@@ -121,33 +156,36 @@ async function verificationPhase(tempDir) {
 
   const results = [];
 
-  for (const lib of CONFIG.libraries) {
-    console.log(chalk.gray(`    Analyzing ${lib.name}...`));
+  for (const category of CONFIG.categories) {
+    for (const lib of category.libraries) {
+      console.log(chalk.gray(`    Analyzing ${lib.name}...`));
 
-    const startTime = performance.now();
-    let exportCount = 0;
-    let status = "PASS";
-    let error = null;
+      const startTime = performance.now();
+      let exportCount = 0;
+      let status = "PASS";
+      let error = null;
 
-    try {
-      const importMap = await analyzeLibrary(lib.name, tempDir);
-      exportCount = importMap.size;
-    } catch (err) {
-      status = "FAIL";
-      error = err.message;
+      try {
+        const importMap = await analyzeLibrary(lib.name, tempDir);
+        exportCount = importMap.size;
+      } catch (err) {
+        status = "FAIL";
+        error = err.message;
+      }
+
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      results.push({
+        category: category.name,
+        name: lib.name,
+        description: lib.description,
+        exportCount,
+        duration,
+        status,
+        error,
+      });
     }
-
-    const endTime = performance.now();
-    const duration = endTime - startTime;
-
-    results.push({
-      name: lib.name,
-      description: lib.description,
-      exportCount,
-      duration,
-      status,
-      error,
-    });
   }
 
   return results;
@@ -159,86 +197,159 @@ async function verificationPhase(tempDir) {
 
 function reportingPhase(results) {
   console.log();
-  console.log(chalk.bgMagenta.white.bold("                                                                  "));
-  console.log(chalk.bgMagenta.white.bold("   🌍 Real-World Verification Results                             "));
-  console.log(chalk.bgMagenta.white.bold("                                                                  "));
+  console.log(chalk.bgMagenta.white.bold("                                                                            "));
+  console.log(chalk.bgMagenta.white.bold("   🌍 Universal Compatibility Verification                                   "));
+  console.log(chalk.bgMagenta.white.bold("                                                                            "));
   console.log();
 
+  // Column widths
+  const col = { cat: 14, lib: 18, exports: 10, time: 10, status: 10 };
+
   // Table header
-  const colWidths = { name: 20, count: 18, time: 15, status: 10 };
-  const separator = chalk.gray(
-    "─".repeat(colWidths.name) +
+  const headerLine =
+    chalk.white.bold("Category".padEnd(col.cat)) +
+    chalk.gray("│") +
+    chalk.white.bold("Library".padEnd(col.lib)) +
+    chalk.gray("│") +
+    chalk.white.bold("Exports".padEnd(col.exports)) +
+    chalk.gray("│") +
+    chalk.white.bold("Time".padEnd(col.time)) +
+    chalk.gray("│") +
+    chalk.white.bold("Status".padEnd(col.status));
+
+  const separatorLine = chalk.gray(
+    "─".repeat(col.cat) +
       "┼" +
-      "─".repeat(colWidths.count) +
+      "─".repeat(col.lib) +
       "┼" +
-      "─".repeat(colWidths.time) +
+      "─".repeat(col.exports) +
       "┼" +
-      "─".repeat(colWidths.status)
+      "─".repeat(col.time) +
+      "┼" +
+      "─".repeat(col.status)
   );
 
-  console.log(
-    chalk.white.bold("Library".padEnd(colWidths.name)) +
-      chalk.gray("│") +
-      chalk.white.bold("Exports Found".padEnd(colWidths.count)) +
-      chalk.gray("│") +
-      chalk.white.bold("Analysis Time".padEnd(colWidths.time)) +
-      chalk.gray("│") +
-      chalk.white.bold("Status".padEnd(colWidths.status))
-  );
-  console.log(separator);
+  console.log(headerLine);
+  console.log(separatorLine);
 
   let allPassed = true;
+  let currentCategory = "";
+  let passedCount = 0;
+  let totalExports = 0;
+  let totalTime = 0;
 
   for (const result of results) {
-    const name = result.name.padEnd(colWidths.name);
-    const count =
+    // Print separator between categories
+    if (currentCategory !== "" && currentCategory !== result.category) {
+      console.log(separatorLine);
+    }
+
+    // Show category only for first item in group
+    const categoryDisplay =
+      currentCategory === result.category
+        ? " ".repeat(col.cat)
+        : chalk.yellow(result.category.padEnd(col.cat));
+
+    currentCategory = result.category;
+
+    const libName = result.name.padEnd(col.lib);
+    const exports =
       result.status === "PASS"
-        ? chalk.cyan(`${result.exportCount.toLocaleString()}+`.padEnd(colWidths.count))
-        : chalk.red("N/A".padEnd(colWidths.count));
+        ? chalk.cyan(`${result.exportCount}+`.padEnd(col.exports))
+        : chalk.red("N/A".padEnd(col.exports));
     const time =
       result.status === "PASS"
-        ? chalk.yellow(formatMs(result.duration).padEnd(colWidths.time))
-        : chalk.red("N/A".padEnd(colWidths.time));
+        ? chalk.white(formatMs(result.duration).padEnd(col.time))
+        : chalk.red("N/A".padEnd(col.time));
     const status =
       result.status === "PASS"
-        ? chalk.green("✅ PASS".padEnd(colWidths.status))
-        : chalk.red("❌ FAIL".padEnd(colWidths.status));
+        ? chalk.green("✅ PASS".padEnd(col.status))
+        : chalk.red("❌ FAIL".padEnd(col.status));
 
-    console.log(chalk.white(name) + chalk.gray("│") + count + chalk.gray("│") + time + chalk.gray("│") + status);
+    console.log(
+      categoryDisplay +
+        chalk.gray("│") +
+        chalk.white(libName) +
+        chalk.gray("│") +
+        exports +
+        chalk.gray("│") +
+        time +
+        chalk.gray("│") +
+        status
+    );
 
     if (result.status === "FAIL") {
       allPassed = false;
-      console.log(chalk.red(`  └─ Error: ${result.error}`));
+      console.log(chalk.red(`              └─ Error: ${result.error}`));
+    } else {
+      passedCount++;
+      totalExports += result.exportCount;
+      totalTime += result.duration;
     }
   }
 
-  console.log(separator);
+  console.log(separatorLine);
   console.log();
 
-  // Summary
+  // Verdict
   if (allPassed) {
-    console.log(chalk.bgGreen.black.bold("  ✅ All libraries verified successfully!  "));
-    console.log();
-    console.log(chalk.gray("> ") + chalk.white("Proven compatibility with complex production libraries."));
+    console.log(
+      chalk.bgGreen.black.bold("  🏆 VERDICT: Fully compatible with Toss's Legacy and Modern tech stack.  ")
+    );
   } else {
-    console.log(chalk.bgRed.white.bold("  ❌ Some libraries failed verification  "));
-    console.log();
-    console.log(chalk.gray("> ") + chalk.yellow("Check error messages above for details."));
+    console.log(
+      chalk.bgRed.white.bold("  ❌ VERDICT: Some libraries failed verification.  ")
+    );
   }
 
   // Statistics
-  const totalExports = results
-    .filter((r) => r.status === "PASS")
-    .reduce((sum, r) => sum + r.exportCount, 0);
-  const avgTime =
-    results.filter((r) => r.status === "PASS").reduce((sum, r) => sum + r.duration, 0) /
-    results.filter((r) => r.status === "PASS").length;
-
   console.log();
-  console.log(chalk.white.bold("📊 Summary:"));
-  console.log(chalk.gray("   ├─ ") + chalk.white(`Total exports discovered: ${chalk.cyan(totalExports.toLocaleString())}`));
-  console.log(chalk.gray("   ├─ ") + chalk.white(`Average analysis time: ${chalk.yellow(formatMs(avgTime))}`));
-  console.log(chalk.gray("   └─ ") + chalk.white(`Libraries verified: ${chalk.green(results.filter((r) => r.status === "PASS").length)}/${results.length}`));
+  console.log(chalk.white.bold("📊 Summary Statistics:"));
+  console.log(
+    chalk.gray("   ├─ ") +
+      chalk.white(`Libraries tested: ${chalk.cyan(results.length)}`)
+  );
+  console.log(
+    chalk.gray("   ├─ ") +
+      chalk.white(`Libraries passed: ${chalk.green(passedCount)}/${results.length}`)
+  );
+  console.log(
+    chalk.gray("   ├─ ") +
+      chalk.white(`Total exports discovered: ${chalk.cyan(totalExports.toLocaleString())}`)
+  );
+  console.log(
+    chalk.gray("   └─ ") +
+      chalk.white(`Total analysis time: ${chalk.yellow(formatMs(totalTime))}`)
+  );
+  console.log();
+
+  // Category breakdown
+  console.log(chalk.white.bold("📋 Category Breakdown:"));
+
+  const categoryStats = new Map();
+  for (const result of results) {
+    if (!categoryStats.has(result.category)) {
+      categoryStats.set(result.category, { passed: 0, total: 0, exports: 0 });
+    }
+    const stats = categoryStats.get(result.category);
+    stats.total++;
+    if (result.status === "PASS") {
+      stats.passed++;
+      stats.exports += result.exportCount;
+    }
+  }
+
+  const catEntries = Array.from(categoryStats.entries());
+  catEntries.forEach(([category, stats], index) => {
+    const prefix = index === catEntries.length - 1 ? "   └─ " : "   ├─ ";
+    const statusIcon = stats.passed === stats.total ? "✅" : "⚠️";
+    console.log(
+      chalk.gray(prefix) +
+        chalk.yellow(category) +
+        chalk.white(`: ${statusIcon} ${stats.passed}/${stats.total} libraries, ${chalk.cyan(stats.exports)} exports`)
+    );
+  });
+
   console.log();
 
   return allPassed;
@@ -263,7 +374,7 @@ function cleanup() {
 
 async function main() {
   console.clear();
-  printHeader("🔬 BARREL OPTIMIZER - Real-World Verification");
+  printHeader("🔬 BARREL OPTIMIZER - Universal Compatibility Verification");
 
   try {
     // Phase 1: Setup

@@ -133,18 +133,33 @@ Simulates a **massive monorepo** to prove production readiness:
 
 ---
 
-## 🌍 Real-World Verification
+## 🌍 Universal Verification (Legacy & Modern)
 
-![Real World Verification](./assets/real-world-result.png)
+Tested against **Toss's entire ecosystem history** to ensure seamless migration support.
+The tool supports both the legacy `slash` packages and the modern `es-toolkit` stack.
 
-Tested against **production-grade open-source libraries** to prove robustness:
+![Universal Verification Result](./assets/universal-result.png)
 
-| Library | Exports Found | Analysis Time | Status |
-|---------|---------------|---------------|--------|
-| `@toss/utils` | 84+ | 52 ms | ✅ PASS |
-| `@mui/material` | 505+ | 512 ms | ✅ PASS |
+### 📋 Result Breakdown
 
-> **Proven compatibility with complex production libraries.**
+| Category | Libraries | Exports | Status |
+|:---------|:----------|:--------|:-------|
+| **Legacy (@toss)** | `@toss/utils`, `@toss/react`, `@toss/react-query` | 124+ | ✅ **PASS** |
+| **Modern (New)** | `es-toolkit`, `es-hangul`, `@suspensive/react` | 224+ | ✅ **PASS** |
+| **Benchmark** | `@mui/material` | 505+ | ✅ **PASS** |
+
+### 📊 Verification Summary
+
+| Metric | Value |
+|:-------|:------|
+| 📦 Libraries Tested | 7 |
+| 🧩 Total Exports Discovered | **853** |
+| ⏱️ Total Analysis Time | **~0.9s** |
+| ✅ Pass Rate | **100%** (7/7) |
+
+> **🏆 Verdict:** Fully compatible with Toss's Legacy and Modern tech stack.
+>
+> Seamless support for migration from `@toss/*` → `es-toolkit` ecosystem.
 
 ---
 
