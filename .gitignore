@@ -7,3 +7,4 @@ playground/node_modules
 .benchmark_env
 .real_world_temp
 .impact_temp
+.vite_test_app

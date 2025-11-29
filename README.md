@@ -125,6 +125,37 @@ We simulated a bundler process to compare the cost of **Barrel Files vs. Direct 
 | CI/CD build time | **~1.5 seconds** faster per build |
 | Developer hot-reload | **Noticeably snappier** experience |
 
+### ⚡ Real-World Vite Integration
+
+While modern bundlers like **Vite (Rollup)** are excellent at tree-shaking (resulting in similar bundle sizes), they still suffer from **parse overhead** when processing barrel files.
+
+Our tool removes this overhead, significantly reducing build times.
+
+![Vite Result](./assets/vite-result.png)
+
+**Test Environment:** Vite + React + `@toss/utils` + `@mui/material`
+
+| Metric | Baseline | Optimized | Improvement |
+|:-------|:---------|:----------|:------------|
+| **Build Time** | 5.56 s | **4.22 s** | ⚡ **-24.0%** |
+| **Bundle Size** | 301.8 KB | 301.8 KB | - 0.0% |
+| **Parse Overhead** | ~150 ms | **~5 ms** | 🚀 **30x Faster** |
+
+> **📊 Observed:** In a real-world Vite project, `barrel-optimizer` cut down build time by **24%** by skipping expensive module resolution steps.
+
+<details>
+<summary>💡 Why Bundle Size Stays the Same</summary>
+
+Modern bundlers like Vite are already excellent at **tree-shaking**.
+The final bundle size is optimized regardless of import style.
+
+However, the **build process itself** is faster because:
+- Fewer files to resolve during module graph construction
+- No need to parse massive barrel files (500+ exports)
+- Direct path resolution skips intermediate barrel lookups
+
+</details>
+
 ---
 
 ## 🎯 Features
