@@ -214,16 +214,18 @@ async function parseModuleExports(filePath: string): Promise<ParsedExports> {
     const namesStr = match[1];
     const source = match[2];
 
+    if (!namesStr || !source) continue;
+
     // Parse the names: "Foo, Bar as Baz, Qux"
     const names = namesStr.split(",").map((name) => {
       const trimmed = name.trim();
       // Handle "Foo as Bar" - we want the exported name (Bar)
       const asMatch = trimmed.match(/(\w+)\s+as\s+(\w+)/);
-      if (asMatch) {
+      if (asMatch?.[2]) {
         return asMatch[2]; // Return the aliased name
       }
       return trimmed;
-    });
+    }).filter((n): n is string => Boolean(n));
 
     reExports.push({ names, source });
   }
@@ -232,7 +234,10 @@ async function parseModuleExports(filePath: string): Promise<ParsedExports> {
   const starReExportRegex = /export\s*\*\s*from\s*['"]([^'"]+)['"]/g;
 
   while ((match = starReExportRegex.exec(content)) !== null) {
-    starReExports.push(match[1]);
+    const source = match[1];
+    if (source) {
+      starReExports.push(source);
+    }
   }
 
   return { namedExports, reExports, starReExports };

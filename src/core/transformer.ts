@@ -5,24 +5,15 @@
  * It rewrites barrel imports to direct file imports for better tree-shaking.
  *
  * Key Design Decisions:
- * 1. Uses SWC's Visitor pattern for efficient AST traversal
+ * 1. Uses SWC for fast AST parsing and code generation
  * 2. Implements bail-out strategy for namespace imports (import * as)
  * 3. Supports alias handling (import { Foo as Bar })
  * 4. Uses atomic replacement (split single import into multiple)
  */
 
-import {
-  parseSync,
-  printSync,
-  Module,
-  ImportDeclaration,
-  ModuleItem,
-  ImportSpecifier,
-  ImportDefaultSpecifier,
-  StringLiteral,
-  Identifier,
-} from "@swc/core";
-import type { ImportMap } from "./analyzer";
+import { parseSync, printSync } from "@swc/core";
+import type { Module, ImportDeclaration, ModuleItem } from "@swc/core";
+import type { ImportMap } from "./analyzer.js";
 
 /**
  * Configuration for the transformer.
@@ -90,66 +81,56 @@ function hasDefaultSpecifier(node: ImportDeclaration): boolean {
 function getNamedSpecifiers(
   node: ImportDeclaration
 ): Array<{ imported: string; local: string }> {
-  return node.specifiers
-    .filter((specifier): specifier is ImportSpecifier =>
-      specifier.type === "ImportSpecifier"
-    )
-    .map((specifier) => ({
-      // The imported name (what's exported from the module)
-      imported: specifier.imported
-        ? specifier.imported.type === "Identifier"
-          ? specifier.imported.value
-          : specifier.imported.value
-        : specifier.local.value,
-      // The local name (what it's called in this file)
-      local: specifier.local.value,
-    }));
+  const result: Array<{ imported: string; local: string }> = [];
+
+  for (const specifier of node.specifiers) {
+    if (specifier.type === "ImportSpecifier") {
+      // Type assertion since we know it's ImportSpecifier
+      const spec = specifier as {
+        type: "ImportSpecifier";
+        local: { value: string };
+        imported?: { type: string; value: string } | null;
+      };
+
+      const local = spec.local.value;
+      const imported = spec.imported?.value ?? local;
+
+      result.push({ imported, local });
+    }
+  }
+
+  return result;
 }
 
 /**
- * Creates an ImportDefaultSpecifier AST node.
+ * Creates an ImportDeclaration AST node with a default import.
  */
-function createDefaultSpecifier(localName: string): ImportDefaultSpecifier {
-  return {
-    type: "ImportDefaultSpecifier",
-    span: { start: 0, end: 0, ctxt: 0 },
-    local: {
-      type: "Identifier",
-      span: { start: 0, end: 0, ctxt: 0 },
-      value: localName,
-      optional: false,
-    },
-  };
-}
-
-/**
- * Creates a StringLiteral AST node for import source.
- */
-function createStringLiteral(value: string): StringLiteral {
-  return {
-    type: "StringLiteral",
-    span: { start: 0, end: 0, ctxt: 0 },
-    value,
-    raw: `"${value}"`,
-  };
-}
-
-/**
- * Creates a new ImportDeclaration with a default import.
- */
-function createDefaultImport(
-  localName: string,
-  source: string
-): ImportDeclaration {
+function createDefaultImport(localName: string, source: string): ImportDeclaration {
   return {
     type: "ImportDeclaration",
     span: { start: 0, end: 0, ctxt: 0 },
-    specifiers: [createDefaultSpecifier(localName)],
-    source: createStringLiteral(source),
+    specifiers: [
+      {
+        type: "ImportDefaultSpecifier",
+        span: { start: 0, end: 0, ctxt: 0 },
+        local: {
+          type: "Identifier",
+          span: { start: 0, end: 0, ctxt: 0 },
+          value: localName,
+          optional: false,
+          ctxt: 0,
+        },
+      },
+    ],
+    source: {
+      type: "StringLiteral",
+      span: { start: 0, end: 0, ctxt: 0 },
+      value: source,
+      raw: `"${source}"`,
+    },
     typeOnly: false,
-    with: undefined,
-    phase: "evaluation",
-  };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 }
 
 /**
@@ -161,66 +142,42 @@ function createNamedImport(
   local: string,
   source: string
 ): ImportDeclaration {
-  const specifier: ImportSpecifier = {
-    type: "ImportSpecifier",
-    span: { start: 0, end: 0, ctxt: 0 },
-    local: {
-      type: "Identifier",
-      span: { start: 0, end: 0, ctxt: 0 },
-      value: local,
-      optional: false,
-    },
-    imported:
-      imported !== local
-        ? {
-            type: "Identifier",
-            span: { start: 0, end: 0, ctxt: 0 },
-            value: imported,
-            optional: false,
-          }
-        : null,
-    isTypeOnly: false,
-  };
-
   return {
     type: "ImportDeclaration",
     span: { start: 0, end: 0, ctxt: 0 },
-    specifiers: [specifier],
-    source: createStringLiteral(source),
+    specifiers: [
+      {
+        type: "ImportSpecifier",
+        span: { start: 0, end: 0, ctxt: 0 },
+        local: {
+          type: "Identifier",
+          span: { start: 0, end: 0, ctxt: 0 },
+          value: local,
+          optional: false,
+          ctxt: 0,
+        },
+        imported:
+          imported !== local
+            ? {
+                type: "Identifier",
+                span: { start: 0, end: 0, ctxt: 0 },
+                value: imported,
+                optional: false,
+                ctxt: 0,
+              }
+            : undefined,
+        isTypeOnly: false,
+      },
+    ],
+    source: {
+      type: "StringLiteral",
+      span: { start: 0, end: 0, ctxt: 0 },
+      value: source,
+      raw: `"${source}"`,
+    },
     typeOnly: false,
-    with: undefined,
-    phase: "evaluation",
-  };
-}
-
-/**
- * Converts an absolute file path to a relative import path.
- * Ensures the path uses forward slashes and starts with './' or '../'.
- */
-function toRelativeImportPath(
-  absolutePath: string,
-  fromFile: string
-): string {
-  // Normalize to forward slashes for cross-platform compatibility
-  const normalizedAbsolute = absolutePath.replace(/\\/g, "/");
-  const normalizedFrom = fromFile.replace(/\\/g, "/");
-
-  // Get directory of the importing file
-  const fromDir = normalizedFrom.substring(
-    0,
-    normalizedFrom.lastIndexOf("/")
-  );
-
-  // Simple relative path calculation
-  // In production, you'd use path.relative with proper handling
-  if (normalizedAbsolute.startsWith(fromDir)) {
-    const relative = normalizedAbsolute.substring(fromDir.length);
-    return relative.startsWith("/") ? `.${relative}` : `./${relative}`;
-  }
-
-  // For now, return the normalized absolute path
-  // The caller should handle proper path resolution
-  return normalizedAbsolute;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 }
 
 /**
@@ -286,13 +243,11 @@ function transformImportDeclaration(
 
   const newImports: ImportDeclaration[] = [];
   const optimizedRewrites: string[] = [];
-  let hasUnresolvedImports = false;
 
   // Track if we have a default import that needs to be preserved
   const hasDefault = hasDefaultSpecifier(node);
   if (hasDefault) {
     // Preserve the default import as-is
-    // Create a new import with just the default specifier
     const defaultSpec = node.specifiers.find(
       (s) => s.type === "ImportDefaultSpecifier"
     );
@@ -303,9 +258,8 @@ function transformImportDeclaration(
         specifiers: [defaultSpec],
         source: node.source,
         typeOnly: node.typeOnly,
-        with: node.with,
-        phase: node.phase,
-      });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
     }
   }
 
@@ -320,7 +274,6 @@ function transformImportDeclaration(
         `Could not resolve '${imported}' from '${source}'. ` +
           `Keeping original import.`
       );
-      hasUnresolvedImports = true;
 
       // Create a named import to the original source for unresolved imports
       newImports.push(createNamedImport(imported, local, source));
@@ -328,11 +281,8 @@ function transformImportDeclaration(
     }
 
     // Create the optimized import path
-    // For now, we use the absolute path; in production you'd convert to relative
-    let importPath = resolvedPath;
-
     // Convert Windows paths to forward slashes
-    importPath = importPath.replace(/\\/g, "/");
+    const importPath = resolvedPath.replace(/\\/g, "/");
 
     // Create a default import with the local name (handles aliases)
     // import { Button as TossBtn } → import TossBtn from '...'
@@ -465,7 +415,7 @@ function inferTargetLibraries(importMap: ImportMap): string[] {
       /node_modules[/\\](@[^/\\]+[/\\][^/\\]+|[^/\\]+)/
     );
 
-    if (nodeModulesMatch) {
+    if (nodeModulesMatch?.[1]) {
       libraries.add(nodeModulesMatch[1].replace(/\\/g, "/"));
     }
   }
@@ -500,8 +450,8 @@ export async function transformFiles(
     })
   );
 
-  for (const [filename, result] of transformedEntries) {
-    results.set(filename, result);
+  for (const [filename, transformedResult] of transformedEntries) {
+    results.set(filename, transformedResult);
   }
 
   return results;
@@ -519,6 +469,8 @@ export function createTransformer(
   importMap: ImportMap,
   targetLibraries?: string[]
 ): (code: string, filename?: string) => TransformResult {
-  return (code: string, filename?: string) =>
-    transformCode(code, importMap, targetLibraries, { filename });
+  return (code: string, filename?: string) => {
+    const options = filename ? { filename } : undefined;
+    return transformCode(code, importMap, targetLibraries, options);
+  };
 }

@@ -14,8 +14,8 @@ import { Command } from "commander";
 import chalk from "chalk";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { analyzeLibrary, type ImportMap } from "../core/analyzer";
-import { transformCode, type TransformResult } from "../core/transformer";
+import { analyzeLibrary, type ImportMap } from "../core/analyzer.js";
+import { transformCode, type TransformResult } from "../core/transformer.js";
 
 // Package version (will be replaced during build)
 const VERSION = "1.0.0";
@@ -45,7 +45,7 @@ const log = {
   },
 
   // Code block display
-  code: (code: string, language = "typescript") => {
+  code: (code: string) => {
     console.log(chalk.dim("─".repeat(50)));
     console.log(chalk.gray(code));
     console.log(chalk.dim("─".repeat(50)));
@@ -60,21 +60,27 @@ class Spinner {
   private current = 0;
   private interval: NodeJS.Timeout | null = null;
   private message: string;
+  private isTTY: boolean;
 
   constructor(message: string) {
     this.message = message;
+    this.isTTY = Boolean(process.stdout.isTTY);
   }
 
   start(): void {
-    process.stdout.write(`${chalk.cyan(this.frames[0])} ${this.message}`);
-    this.interval = setInterval(() => {
-      this.current = (this.current + 1) % this.frames.length;
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write(
-        `${chalk.cyan(this.frames[this.current])} ${this.message}`
-      );
-    }, 80);
+    if (this.isTTY) {
+      process.stdout.write(`${chalk.cyan(this.frames[0])} ${this.message}`);
+      this.interval = setInterval(() => {
+        this.current = (this.current + 1) % this.frames.length;
+        process.stdout.clearLine?.(0);
+        process.stdout.cursorTo?.(0);
+        process.stdout.write(
+          `${chalk.cyan(this.frames[this.current])} ${this.message}`
+        );
+      }, 80);
+    } else {
+      console.log(`${chalk.cyan("...")} ${this.message}`);
+    }
   }
 
   stop(success = true): void {
@@ -82,8 +88,10 @@ class Spinner {
       clearInterval(this.interval);
       this.interval = null;
     }
-    process.stdout.clearLine(0);
-    process.stdout.cursorTo(0);
+    if (this.isTTY) {
+      process.stdout.clearLine?.(0);
+      process.stdout.cursorTo?.(0);
+    }
     if (success) {
       console.log(`${chalk.green("✓")} ${this.message}`);
     } else {
@@ -159,6 +167,9 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Suppress unused warning - kept for future use
+void formatBytes;
 
 /**
  * Analyze command: Inspects a library and displays its export map.
@@ -417,8 +428,11 @@ async function optimizeCommand(
 
   // Show sample output for single file
   if (!options.write && files.length === 1 && transformedFiles.length > 0) {
-    console.log(chalk.bold("Transformed Code:"));
-    log.code(transformedFiles[0].result.code);
+    const firstTransformed = transformedFiles[0];
+    if (firstTransformed) {
+      console.log(chalk.bold("Transformed Code:"));
+      log.code(firstTransformed.result.code);
+    }
   }
 
   if (!options.write && transformedFiles.length > 0) {
