@@ -182,18 +182,32 @@ The optimizer **skips** potentially unsafe patterns:
 
 ## 📊 Benchmark
 
-Tested with a mock `@test/ui` library (8 components, nested barrels):
+![Stress Test Results](./assets/benchmark-result.png)
 
-| Metric | Value |
-|--------|-------|
-| Exports Discovered | 8 |
-| Analysis Time | 16ms |
-| Transform Time | 3ms |
-| Import Statements Optimized | 4 |
+### Stress Test Environment
 
-**Real-world estimate** with `@toss/ui` (500+ components):
-- Analysis: ~50ms
-- Bundle size reduction: **~90%** of unused code eliminated
+Simulates a **massive monorepo** to prove production readiness:
+
+| Environment | Value |
+|-------------|-------|
+| 📦 Target Library | `@heavy/ui` |
+| 🧩 Library Exports | 500 components |
+| 📄 Source Files | 1,000 files |
+| 🔗 Total Imports | ~10,000 imports |
+
+### Performance Results
+
+| Metric | Result | Evaluation |
+|--------|--------|------------|
+| 🔍 Analysis Time | 442.45 ms | ✅ Fast |
+| ⚡ Transform Time | 471.84 ms | ✅ Fast |
+| ⏱️ **Total Time** | **0.91 s** | 🚀 Sub-second |
+| 💾 Memory (Heap) | 8.59 MB | ✅ Lightweight |
+| 📈 Throughput | 21,194 imports/sec | 🔥 High |
+
+> **✅ EXCELLENT: Sub-second performance for 1,000 files!**
+>
+> Production-ready for large-scale monorepos.
 
 ---
 
