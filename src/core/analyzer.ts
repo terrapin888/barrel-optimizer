@@ -88,6 +88,51 @@ async function fileExists(filePath: string): Promise<boolean> {
 }
 
 /**
+ * Recursively resolves a conditional export value to a string path.
+ * Handles deeply nested conditional exports like:
+ * { "import": { "types": "...", "default": "..." } }
+ *
+ * @param value - The export value to resolve
+ * @returns The resolved string path, or undefined if not found
+ */
+function resolveConditionalExport(value: unknown): string | undefined {
+  // Direct string value
+  if (typeof value === "string") {
+    return value;
+  }
+
+  // Object with conditional exports
+  if (typeof value === "object" && value !== null) {
+    const obj = value as Record<string, unknown>;
+
+    // Priority order for conditional exports (ESM-first)
+    const priorities = ["import", "module", "default", "require", "node"];
+
+    for (const key of priorities) {
+      if (key in obj) {
+        const resolved = resolveConditionalExport(obj[key]);
+        if (resolved) {
+          return resolved;
+        }
+      }
+    }
+
+    // If none of the priority keys found, try to find any string value
+    for (const key of Object.keys(obj)) {
+      // Skip "types" as it's TypeScript declaration files
+      if (key === "types") continue;
+
+      const resolved = resolveConditionalExport(obj[key]);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Reads the package.json of a library and resolves its entry point.
  *
  * @param libraryName - The name of the npm package
@@ -132,17 +177,8 @@ async function resolveLibraryEntryPoint(
     else if (typeof exportsField === "object" && exportsField !== null) {
       const rootExport = exportsField["."];
 
-      if (typeof rootExport === "string") {
-        entryPoint = rootExport;
-      } else if (typeof rootExport === "object" && rootExport !== null) {
-        // Handle conditional exports: { ".": { "import": "...", "require": "..." } }
-        const conditionalExport = rootExport as Record<string, unknown>;
-        entryPoint =
-          (conditionalExport["import"] as string | undefined) ??
-          (conditionalExport["module"] as string | undefined) ??
-          (conditionalExport["default"] as string | undefined) ??
-          (conditionalExport["require"] as string | undefined);
-      }
+      // Recursively resolve the conditional export
+      entryPoint = resolveConditionalExport(rootExport);
     }
   }
 

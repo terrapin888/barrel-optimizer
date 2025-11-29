@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation)
+[Features](#-features) • [Benchmark](#-benchmark) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation)
 
 </div>
 
@@ -102,6 +102,64 @@ import useToggle from '@toss/ui/dist/hooks/useToggle.js';
 
 ---
 
+## 📊 Benchmark
+
+### Stress Test Results
+
+![Benchmark Results](./assets/benchmark-result.png)
+
+Simulates a **massive monorepo** to prove production readiness:
+
+| Environment | Value |
+|-------------|-------|
+| 📦 Target Library | `@heavy/ui` |
+| 🧩 Library Exports | 500 components |
+| 📄 Source Files | 1,000 files |
+| 🔗 Total Imports | ~10,000 imports |
+
+### Performance Metrics
+
+| Metric | Result | Evaluation |
+|--------|--------|------------|
+| 🔍 Analysis Time | 442.45 ms | ✅ Fast |
+| ⚡ Transform Time | 471.84 ms | ✅ Fast |
+| ⏱️ **Total Time** | **0.91 s** | 🚀 Sub-second |
+| 💾 Memory (Heap) | 8.59 MB | ✅ Lightweight |
+| 📈 Throughput | **21,194 imports/sec** | 🔥 High |
+
+> **✅ EXCELLENT: Sub-second performance for 1,000 files!**
+>
+> Production-ready for large-scale monorepos.
+
+---
+
+## 🌍 Real-World Verification
+
+![Real World Verification](./assets/real-world-result.png)
+
+Tested against **production-grade open-source libraries** to prove robustness:
+
+| Library | Exports Found | Analysis Time | Status |
+|---------|---------------|---------------|--------|
+| `@toss/utils` | 84+ | 52 ms | ✅ PASS |
+| `@mui/material` | 505+ | 512 ms | ✅ PASS |
+
+> **Proven compatibility with complex production libraries.**
+
+---
+
+## 🔒 Safety: Bail-out Cases
+
+The optimizer **skips** potentially unsafe patterns:
+
+| Pattern | Action | Reason |
+|---------|--------|--------|
+| `import * as UI from '@toss/ui'` | ⚠️ Skip + Warn | Can't determine which exports are used |
+| `import '@toss/ui'` | ⏭️ Skip | Side-effect only import |
+| `const UI = await import('@toss/ui')` | ⏭️ Skip | Dynamic import |
+
+---
+
 ## 📦 Installation
 
 ```bash
@@ -168,59 +226,6 @@ Options:
 
 ---
 
-## 🔒 Safety: Bail-out Cases
-
-The optimizer **skips** potentially unsafe patterns:
-
-| Pattern | Action | Reason |
-|---------|--------|--------|
-| `import * as UI from '@toss/ui'` | ⚠️ Skip + Warn | Can't determine which exports are used |
-| `import '@toss/ui'` | ⏭️ Skip | Side-effect only import |
-| `const UI = await import('@toss/ui')` | ⏭️ Skip | Dynamic import |
-
----
-
-## 📊 Benchmark
-
-![Stress Test Results](./assets/benchmark-result.png)
-
-### Stress Test Environment
-
-Simulates a **massive monorepo** to prove production readiness:
-
-| Environment | Value |
-|-------------|-------|
-| 📦 Target Library | `@heavy/ui` |
-| 🧩 Library Exports | 500 components |
-| 📄 Source Files | 1,000 files |
-| 🔗 Total Imports | ~10,000 imports |
-
-### Performance Results
-
-| Metric | Result | Evaluation |
-|--------|--------|------------|
-| 🔍 Analysis Time | 442.45 ms | ✅ Fast |
-| ⚡ Transform Time | 471.84 ms | ✅ Fast |
-| ⏱️ **Total Time** | **0.91 s** | 🚀 Sub-second |
-| 💾 Memory (Heap) | 8.59 MB | ✅ Lightweight |
-| 📈 Throughput | 21,194 imports/sec | 🔥 High |
-
-> **✅ EXCELLENT: Sub-second performance for 1,000 files!**
->
-> Production-ready for large-scale monorepos.
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [📐 Architecture](./docs/ARCHITECTURE.md) | Technical deep-dive into the two-phase pipeline |
-| [🗺️ Roadmap](./docs/ROADMAP.md) | Project plan, milestones, and future features |
-| [🔧 Troubleshooting](./docs/TROUBLESHOOTING.md) | Common issues and solutions |
-
----
-
 ## 🏗️ How It Works
 
 ```
@@ -242,6 +247,16 @@ Simulates a **massive monorepo** to prove production readiness:
 │         (Namespace/Dynamic Import)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [📐 Architecture](./docs/ARCHITECTURE.md) | Technical deep-dive into the two-phase pipeline |
+| [🗺️ Roadmap](./docs/ROADMAP.md) | Project plan, milestones, and future features |
+| [🔧 Troubleshooting](./docs/TROUBLESHOOTING.md) | Common issues and solutions |
 
 ---
 
