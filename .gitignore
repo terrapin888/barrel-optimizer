@@ -8,3 +8,4 @@ playground/node_modules
 .real_world_temp
 .impact_temp
 .vite_test_app
+.threejs_bench
