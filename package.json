@@ -33,7 +33,7 @@
     "bundler",
     "monorepo"
   ],
-  "author": "Seungwan Cho <csw7515@naver.com>",
+  "author": "최수운 <csw21c915@gmail.com>",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
