@@ -7,7 +7,13 @@
  */
 
 // Core exports
-export { analyzeLibrary, analyzeLibraries, type ImportMap } from "./core/analyzer.js";
+export {
+  analyzeLibrary,
+  analyzeLibraries,
+  type ImportMap,
+  type AnalyzeOptions,
+  type AnalyzerLogger,
+} from "./core/analyzer.js";
 export {
   transformCode,
   transformFiles,

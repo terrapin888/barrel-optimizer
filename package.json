@@ -5,9 +5,20 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "barrel-optimizer": "./dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -35,6 +46,14 @@
   ],
   "author": "최수운 <csw21c915@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terrapin888/barrel-optimizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/terrapin888/barrel-optimizer/issues"
+  },
+  "homepage": "https://github.com/terrapin888/barrel-optimizer#readme",
   "engines": {
     "node": ">=18.0.0"
   },

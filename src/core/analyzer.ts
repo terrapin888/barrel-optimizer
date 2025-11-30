@@ -22,6 +22,32 @@ import * as path from "node:path";
 export type ImportMap = Map<string, string>;
 
 /**
+ * Logger interface for customizable logging.
+ * Allows callers to provide their own logging implementation.
+ */
+export interface AnalyzerLogger {
+  warn: (message: string, error?: unknown) => void;
+  debug?: (message: string) => void;
+}
+
+/**
+ * Options for library analysis.
+ */
+export interface AnalyzeOptions {
+  /** Custom logger for warnings and debug messages. If not provided, logging is silent. */
+  logger?: AnalyzerLogger;
+}
+
+/**
+ * Default silent logger - no output.
+ * Libraries should not pollute console by default.
+ */
+const silentLogger: AnalyzerLogger = {
+  warn: () => {},
+  debug: () => {},
+};
+
+/**
  * Supported file extensions for module resolution.
  * Order matters: we try each extension in sequence until a file is found.
  */
@@ -291,6 +317,8 @@ interface DFSContext {
   rootPath: string;
   /** Name of the library being analyzed */
   libraryName: string;
+  /** Logger for warnings and debug output */
+  logger: AnalyzerLogger;
 }
 
 /**
@@ -328,7 +356,7 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
   } catch (error) {
     // If we can't parse a file, log a warning and continue
     // This allows the analyzer to be resilient to edge cases
-    console.warn(`[Analyzer] Failed to parse ${normalizedPath}:`, error);
+    ctx.logger.warn(`Failed to parse ${normalizedPath}`, error);
     return;
   }
 
@@ -367,6 +395,7 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
         visited: ctx.visited, // Share visited set to maintain cycle detection
         rootPath: ctx.rootPath,
         libraryName: ctx.libraryName,
+        logger: ctx.logger, // Share logger from parent context
       };
 
       // Recursively analyze the star source
@@ -418,6 +447,7 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
  *
  * @param libraryName - The npm package name (e.g., '@toss/ui')
  * @param rootPath - The project root path containing node_modules
+ * @param options - Optional configuration including logger
  * @returns ImportMap mapping export names to absolute file paths
  *
  * @example
@@ -426,7 +456,8 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
  */
 export async function analyzeLibrary(
   libraryName: string,
-  rootPath: string
+  rootPath: string,
+  options?: AnalyzeOptions
 ): Promise<ImportMap> {
   // Initialize es-module-lexer (must be called before parsing)
   await init;
@@ -440,6 +471,7 @@ export async function analyzeLibrary(
     visited: new Set(), // Prevents infinite loops from circular dependencies
     rootPath,
     libraryName,
+    logger: options?.logger ?? silentLogger,
   };
 
   // Start DFS from the entry point
@@ -454,6 +486,7 @@ export async function analyzeLibrary(
  *
  * @param libraryNames - Array of npm package names
  * @param rootPath - The project root path containing node_modules
+ * @param options - Optional configuration including logger
  * @returns Merged ImportMap with library name prefixes to avoid collisions
  *
  * @example
@@ -461,11 +494,12 @@ export async function analyzeLibrary(
  */
 export async function analyzeLibraries(
   libraryNames: string[],
-  rootPath: string
+  rootPath: string,
+  options?: AnalyzeOptions
 ): Promise<Map<string, ImportMap>> {
   const results = await Promise.all(
     libraryNames.map(async (name) => {
-      const importMap = await analyzeLibrary(name, rootPath);
+      const importMap = await analyzeLibrary(name, rootPath, options);
       return [name, importMap] as const;
     })
   );

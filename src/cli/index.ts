@@ -13,12 +13,38 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
-import { analyzeLibrary, type ImportMap } from "../core/analyzer.js";
+import { fileURLToPath } from "node:url";
+import { analyzeLibrary, type ImportMap, type AnalyzerLogger } from "../core/analyzer.js";
 import { transformCode, type TransformResult } from "../core/transformer.js";
 
-// Package version (will be replaced during build)
-const VERSION = "1.0.0";
+// Dynamically load version from package.json
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageJsonPath = path.resolve(__dirname, "../../package.json");
+const packageJson = JSON.parse(fsSync.readFileSync(packageJsonPath, "utf-8")) as { version: string };
+const VERSION = packageJson.version;
+
+/**
+ * Creates a CLI logger that outputs warnings when verbose mode is enabled.
+ */
+function createCliLogger(verbose: boolean): AnalyzerLogger {
+  return {
+    warn: (message, error) => {
+      if (verbose) {
+        log.warn(message);
+        if (error instanceof Error) {
+          log.dim(`  ${error.message}`);
+        }
+      }
+    },
+    debug: (message) => {
+      if (verbose) {
+        log.dim(message);
+      }
+    },
+  };
+}
 
 /**
  * CLI Logger with chalk styling
@@ -176,7 +202,7 @@ void formatBytes;
  */
 async function analyzeCommand(
   libraryName: string,
-  options: { cwd?: string }
+  options: { cwd?: string; verbose?: boolean }
 ): Promise<void> {
   log.header(`Analyzing: ${libraryName}`);
 
@@ -196,9 +222,10 @@ async function analyzeCommand(
 
   let importMap: ImportMap;
   const startTime = Date.now();
+  const analyzerLogger = createCliLogger(options.verbose ?? false);
 
   try {
-    importMap = await analyzeLibrary(libraryName, projectRoot);
+    importMap = await analyzeLibrary(libraryName, projectRoot, { logger: analyzerLogger });
     spinner.stop(true);
   } catch (error) {
     spinner.stop(false);
@@ -292,9 +319,10 @@ async function optimizeCommand(
   analyzeSpinner.start();
 
   const analyzeStart = Date.now();
+  const analyzerLogger = createCliLogger(options.verbose ?? false);
   try {
     for (const lib of libraries) {
-      const libMap = await analyzeLibrary(lib, projectRoot);
+      const libMap = await analyzeLibrary(lib, projectRoot, { logger: analyzerLogger });
       for (const [name, filePath] of libMap) {
         mergedImportMap.set(name, filePath);
       }
@@ -342,8 +370,11 @@ async function optimizeCommand(
       const content = await fs.readFile(file, "utf-8");
       const result = transformCode(content, mergedImportMap, libraries, {
         filename: file,
-        logger: {
-          warn: () => {}, // Suppress warnings during batch processing
+        logger: options.verbose ? {
+          warn: (msg) => log.warn(msg),
+          debug: (msg) => log.dim(msg),
+        } : {
+          warn: () => {},
           debug: () => {},
         },
       });
@@ -466,6 +497,7 @@ program
   .command("analyze <library>")
   .description("Analyze a library and display its export map")
   .option("--cwd <path>", "Working directory", process.cwd())
+  .option("-v, --verbose", "Show detailed output including warnings", false)
   .action(analyzeCommand);
 
 // Optimize command

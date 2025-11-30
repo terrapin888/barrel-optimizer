@@ -5,7 +5,7 @@
 **Zero-Overhead Barrel File Optimizer for Better Tree-Shaking**
 
 [![CI](https://github.com/terrapin888/barrel-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/terrapin888/barrel-optimizer/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-87%25-brightgreen?logo=vitest&logoColor=white)](https://github.com/terrapin888/barrel-optimizer)
+[![Coverage](https://img.shields.io/badge/Coverage-93%25-brightgreen?logo=vitest&logoColor=white)](https://github.com/terrapin888/barrel-optimizer)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -213,7 +213,7 @@ Simulates a **massive monorepo** to prove production readiness:
 Tested against **Toss's entire ecosystem history** to ensure seamless migration support.
 The tool supports both the legacy `slash` packages and the modern `es-toolkit` stack.
 
-![Universal Verification Result](./assets/universal-result.png)
+![Universal Verification Result](./assets/real-world-result.png)
 
 ### 📋 Result Breakdown
 
@@ -334,6 +334,115 @@ Options:
 
 ---
 
+## 📦 Programmatic Usage
+
+Use `barrel-optimizer` as a library in your build tools, plugins, or scripts.
+
+### Basic Transform
+
+```typescript
+import { analyzeLibrary, transformCode } from 'barrel-optimizer';
+
+// Step 1: Analyze the library to build an ImportMap
+const importMap = await analyzeLibrary('@mui/material', process.cwd());
+
+// Step 2: Transform source code
+const sourceCode = `import { Button, TextField } from '@mui/material';`;
+const result = transformCode(sourceCode, importMap, ['@mui/material']);
+
+console.log(result.code);
+// Output:
+// import Button from '@mui/material/Button';
+// import TextField from '@mui/material/TextField';
+
+console.log(result.transformed); // true
+console.log(result.optimized);   // [{ original: '@mui/material', rewrites: [...] }]
+```
+
+### Creating a Webpack Plugin
+
+```typescript
+import { analyzeLibrary, createTransformer } from 'barrel-optimizer';
+
+class BarrelOptimizerPlugin {
+  private transform: ((code: string) => { code: string; transformed: boolean }) | null = null;
+  private targetLibraries = ['@mui/material', 'es-toolkit'];
+
+  apply(compiler) {
+    compiler.hooks.beforeCompile.tapPromise('BarrelOptimizerPlugin', async () => {
+      // Build ImportMap once before compilation
+      const importMap = new Map();
+      for (const lib of this.targetLibraries) {
+        const libMap = await analyzeLibrary(lib, compiler.context);
+        for (const [name, path] of libMap) {
+          importMap.set(name, path);
+        }
+      }
+      this.transform = createTransformer(importMap, this.targetLibraries);
+    });
+
+    compiler.hooks.normalModuleFactory.tap('BarrelOptimizerPlugin', (factory) => {
+      factory.hooks.parser.for('javascript/auto').tap('BarrelOptimizerPlugin', (parser) => {
+        // Transform imports at parse time
+        parser.hooks.program.tap('BarrelOptimizerPlugin', (ast, comments) => {
+          if (this.transform && parser.state.current) {
+            const result = this.transform(parser.state.current.originalSource().source());
+            if (result.transformed) {
+              // Apply transformed code
+              parser.state.current._source = new RawSource(result.code);
+            }
+          }
+        });
+      });
+    });
+  }
+}
+```
+
+### Creating a Vite Plugin
+
+```typescript
+import { analyzeLibrary, transformCode } from 'barrel-optimizer';
+import type { Plugin } from 'vite';
+
+export function barrelOptimizer(libraries: string[]): Plugin {
+  let importMap: Map<string, string>;
+
+  return {
+    name: 'barrel-optimizer',
+    async buildStart() {
+      // Analyze libraries at build start
+      importMap = new Map();
+      for (const lib of libraries) {
+        const libMap = await analyzeLibrary(lib, process.cwd());
+        for (const [name, path] of libMap) {
+          importMap.set(name, path);
+        }
+      }
+    },
+    transform(code, id) {
+      // Skip node_modules and non-JS files
+      if (id.includes('node_modules') || !/\.[jt]sx?$/.test(id)) {
+        return null;
+      }
+      const result = transformCode(code, importMap, libraries, { filename: id });
+      if (result.transformed) {
+        return { code: result.code, map: null };
+      }
+      return null;
+    },
+  };
+}
+
+// Usage in vite.config.ts:
+// import { barrelOptimizer } from './plugins/barrel-optimizer';
+// export default { plugins: [barrelOptimizer(['@mui/material', 'es-toolkit'])] };
+```
+
+> **See Also:** [Full API Reference](./docs/API.md) for detailed documentation of all functions and types.
+
+---
+
 ## 🏗️ How It Works
 
 ```
@@ -362,6 +471,7 @@ Options:
 
 | Document | Description |
 |----------|-------------|
+| [📖 API Reference](./docs/API.md) | Programmatic API for library/plugin integration |
 | [📐 Architecture](./docs/ARCHITECTURE.md) | Technical deep-dive into the two-phase pipeline |
 | [🗺️ Roadmap](./docs/ROADMAP.md) | Project plan, milestones, and future features |
 | [🔧 Troubleshooting](./docs/TROUBLESHOOTING.md) | Common issues and solutions |

@@ -90,9 +90,13 @@ interface Logger {
   debug: (message: string) => void;
 }
 
+/**
+ * Default silent logger - libraries should not pollute console by default.
+ * Users can provide their own logger via TransformConfig.logger if needed.
+ */
 const defaultLogger: Logger = {
-  warn: (msg) => console.warn(`[Transformer] ${msg}`),
-  debug: (msg) => console.debug(`[Transformer] ${msg}`),
+  warn: () => {},
+  debug: () => {},
 };
 
 /**
