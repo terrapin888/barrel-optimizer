@@ -403,7 +403,7 @@ export function transformCode(
       decorators: true,
     });
   } catch (error) {
-    logger.warn(`Failed to parse ${filename}: ${error}`);
+    logger.warn(`Failed to parse ${filename}: ${error instanceof Error ? error.message : String(error)}`);
     return result;
   }
 
@@ -449,7 +449,7 @@ export function transformCode(
     result.code = output.code;
     result.transformed = true;
   } catch (error) {
-    logger.warn(`Failed to print transformed code: ${error}`);
+    logger.warn(`Failed to print transformed code: ${error instanceof Error ? error.message : String(error)}`);
     return { ...result, transformed: false };
   }
 

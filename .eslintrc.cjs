@@ -54,9 +54,31 @@ module.exports = {
   ],
   overrides: [
     {
+      files: ["src/cli/**/*.ts"],
+      rules: {
+        "no-console": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+      },
+    },
+    {
+      files: ["src/core/transformer.ts"],
+      rules: {
+        // SWC AST manipulation requires flexible typing
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+      },
+    },
+    {
       files: ["tests/**/*.ts"],
       rules: {
         "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-base-to-string": "off",
+        "@typescript-eslint/restrict-template-expressions": "off",
+        "@typescript-eslint/require-await": "off",
+        "@typescript-eslint/no-unused-vars": "off",
         "no-console": "off",
       },
     },

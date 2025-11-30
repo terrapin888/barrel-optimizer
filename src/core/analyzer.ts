@@ -154,7 +154,7 @@ async function resolveLibraryEntryPoint(
 
   try {
     const content = await fs.readFile(packageJsonPath, "utf-8");
-    packageJson = JSON.parse(content);
+    packageJson = JSON.parse(content) as typeof packageJson;
   } catch {
     throw new Error(
       `Failed to read package.json for library: ${libraryName} at ${packageJsonPath}`

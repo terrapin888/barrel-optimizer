@@ -202,7 +202,7 @@ async function analyzeCommand(
     spinner.stop(true);
   } catch (error) {
     spinner.stop(false);
-    log.error(`Failed to analyze library: ${error}`);
+    log.error(`Failed to analyze library: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 
@@ -302,7 +302,7 @@ async function optimizeCommand(
     analyzeSpinner.stop(true);
   } catch (error) {
     analyzeSpinner.stop(false);
-    log.error(`Failed to analyze libraries: ${error}`);
+    log.error(`Failed to analyze libraries: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 
@@ -359,7 +359,7 @@ async function optimizeCommand(
         await fs.writeFile(file, result.code, "utf-8");
       }
     } catch (error) {
-      log.warn(`Failed to process ${file}: ${error}`);
+      log.warn(`Failed to process ${file}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
