@@ -405,17 +405,10 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
         }
       }
 
-      // Also need to check if the star source itself has direct exports
-      try {
-        const starParsed = await parseModuleExports(resolvedSource);
-        for (const name of starParsed.namedExports) {
-          if (!ctx.importMap.has(name)) {
-            ctx.importMap.set(name, resolvedSource);
-          }
-        }
-      } catch {
-        // Ignore parse errors for star sources
-      }
+      // Note: No need to re-parse star source for namedExports here.
+      // dfsAnalyze already processes namedExports at the end of this function,
+      // and if the star source was already visited, its exports are in an
+      // ancestor's importMap that propagates through the tempMap merge chain.
     }
   }
 
