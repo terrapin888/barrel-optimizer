@@ -9,11 +9,13 @@ on:
 jobs:
   lint-test-build:
     name: Lint, Test & Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         node-version: [18.x, 20.x]
+        os: [ubuntu-latest, windows-latest]
+      fail-fast: false
 
     steps:
       - name: Checkout repository
@@ -40,7 +42,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Optional: Run tests with coverage
+  # Coverage reporting (Ubuntu only for speed)
   coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
@@ -62,9 +64,20 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          files: ./coverage/coverage-final.json
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: barrel-optimizer-coverage
           fail_ci_if_error: false
-        continue-on-error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30

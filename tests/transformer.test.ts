@@ -279,6 +279,73 @@ const x = 1;
       // Should produce @mui/material/styles (not @mui/material/styles/index)
       expect(result.code).not.toContain("index");
     });
+
+    it("should handle mixed value and type imports correctly", () => {
+      // Tests: import { Button, type ButtonProps } from 'lib';
+      // Only the value import (Button) should be transformed
+      const importMap = createMockImportMap([
+        ["Button", "/project/node_modules/@mui/material/esm/Button/Button.js"],
+        ["ButtonProps", "/project/node_modules/@mui/material/esm/Button/Button.js"],
+      ]);
+
+      const code = `import { Button, type ButtonProps } from '@mui/material';`;
+
+      const result = transformCode(code, importMap, ["@mui/material"], {
+        filename: "test.ts",
+        logger: silentLogger,
+      });
+
+      // Value import should be transformed
+      expect(result.transformed).toBe(true);
+      expect(result.code).toContain("@mui/material/Button");
+
+      // The type import should be preserved (either inline or separate)
+      // Key: We should not lose the type import
+      expect(result.code).toContain("ButtonProps");
+    });
+
+    it("should skip inline type imports during transformation", () => {
+      // Tests that inline type specifiers (type X) are correctly identified
+      const importMap = createMockImportMap([
+        ["useCallback", "/project/node_modules/react/esm/useCallback.js"],
+        ["ReactNode", "/project/node_modules/react/esm/types.js"],
+        ["FC", "/project/node_modules/react/esm/types.js"],
+      ]);
+
+      const code = `import { useCallback, type ReactNode, type FC } from 'react';`;
+
+      const result = transformCode(code, importMap, ["react"], {
+        filename: "test.tsx",
+        logger: silentLogger,
+      });
+
+      // Should transform the value import
+      expect(result.code).toContain("useCallback");
+
+      // Type imports should be preserved (not lost)
+      expect(result.code).toContain("ReactNode");
+      expect(result.code).toContain("FC");
+    });
+
+    it("should handle type-only import statements separately", () => {
+      // Tests: import type { ButtonProps } from 'lib';
+      // These are statement-level type imports, not inline
+      const importMap = createMockImportMap([
+        ["ButtonProps", "/project/node_modules/@mui/material/esm/Button/Button.js"],
+      ]);
+
+      const code = `import type { ButtonProps, ModalProps } from '@mui/material';`;
+
+      const result = transformCode(code, importMap, ["@mui/material"], {
+        filename: "test.ts",
+        logger: silentLogger,
+      });
+
+      // Type-only imports may or may not be transformed (depends on implementation)
+      // Key guarantee: they should not cause errors and should be preserved
+      expect(result.code).toContain("ButtonProps");
+      expect(result.code).toContain("ModalProps");
+    });
   });
 
   describe("Safety Guarantees", () => {

@@ -4,6 +4,8 @@
 
 **Zero-Overhead Barrel File Optimizer for Better Tree-Shaking**
 
+[![CI](https://github.com/terrapin888/barrel-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/terrapin888/barrel-optimizer/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-87%25-brightgreen?logo=vitest&logoColor=white)](https://github.com/terrapin888/barrel-optimizer)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

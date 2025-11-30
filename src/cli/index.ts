@@ -457,9 +457,7 @@ const program = new Command();
 program
   .name("barrel-optimizer")
   .description(
-    chalk.bold("Zero-Overhead Barrel File Optimizer") +
-      "\n" +
-      chalk.dim("Optimize imports for better tree-shaking in large monorepos.")
+    `${chalk.bold("Zero-Overhead Barrel File Optimizer")}\n${chalk.dim("Optimize imports for better tree-shaking in large monorepos.")}`
   )
   .version(VERSION);
 
@@ -476,7 +474,7 @@ program
   .description("Optimize imports in a file or directory")
   .option(
     "-l, --library <names...>",
-    "Libraries to optimize",
+    "Target barrel libraries (e.g., @toss/ui, es-toolkit, @mui/material)",
     ["@toss/ui"]
   )
   .option("-w, --write", "Write changes to files", false)
@@ -488,7 +486,7 @@ program
 program
   .command("build <target>")
   .description("Alias for optimize --write")
-  .option("-l, --library <names...>", "Libraries to optimize", ["@toss/ui"])
+  .option("-l, --library <names...>", "Target barrel libraries (e.g., @toss/ui, es-toolkit, @mui/material)", ["@toss/ui"])
   .option("--cwd <path>", "Working directory", process.cwd())
   .option("-v, --verbose", "Show detailed output", false)
   .action((target, options) =>

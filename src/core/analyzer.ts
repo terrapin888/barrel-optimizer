@@ -375,10 +375,10 @@ async function dfsAnalyze(filePath: string, ctx: DFSContext): Promise<void> {
       // Merge collected exports into main ImportMap
       // For star exports, the resolved path should be the star source file itself
       // because that's where the actual export lives
-      for (const [name] of tempMap) {
+      for (const [name, resolvedFilePath] of tempMap) {
         if (!ctx.importMap.has(name)) {
           // For star re-exports, we map to the file where the export originates
-          ctx.importMap.set(name, tempMap.get(name)!);
+          ctx.importMap.set(name, resolvedFilePath);
         }
       }
 

@@ -201,6 +201,88 @@ describe("Analyzer Module", () => {
       const componentPath = importMap.get("Component");
       expect(componentPath).toContain("esm");
     });
+
+    it("should handle deeply nested barrel files (3+ levels)", async () => {
+      // Structure: index.js → sub/index.js → components/index.js → Button.js, Modal.js
+      // This tests DFS traversal through multiple levels of barrel re-exports
+      mockFileSystem({
+        "node_modules/@test/nested/package.json": JSON.stringify({
+          name: "@test/nested",
+          main: "./index.js",
+        }),
+        // Level 1: Root barrel
+        "node_modules/@test/nested/index.js": `
+          export * from './sub/index.js';
+          export { RootUtil } from './utils.js';
+        `,
+        "node_modules/@test/nested/utils.js": `
+          export const RootUtil = () => {};
+        `,
+        // Level 2: Sub-barrel
+        "node_modules/@test/nested/sub/index.js": `
+          export * from './components/index.js';
+          export { SubHelper } from './helpers.js';
+        `,
+        "node_modules/@test/nested/sub/helpers.js": `
+          export const SubHelper = () => {};
+        `,
+        // Level 3: Components barrel
+        "node_modules/@test/nested/sub/components/index.js": `
+          export { Button } from './Button.js';
+          export { Modal } from './Modal.js';
+          export * from './forms/index.js';
+        `,
+        "node_modules/@test/nested/sub/components/Button.js": `
+          export const Button = () => {};
+        `,
+        "node_modules/@test/nested/sub/components/Modal.js": `
+          export const Modal = () => {};
+        `,
+        // Level 4: Even deeper nesting
+        "node_modules/@test/nested/sub/components/forms/index.js": `
+          export { Input } from './Input.js';
+          export { Select } from './Select.js';
+        `,
+        "node_modules/@test/nested/sub/components/forms/Input.js": `
+          export const Input = () => {};
+        `,
+        "node_modules/@test/nested/sub/components/forms/Select.js": `
+          export const Select = () => {};
+        `,
+      });
+
+      const { analyzeLibrary } = await import("../src/core/analyzer.js");
+
+      const startTime = Date.now();
+      const importMap = await analyzeLibrary("@test/nested", "/project");
+      const elapsed = Date.now() - startTime;
+
+      // Should complete quickly despite deep nesting
+      expect(elapsed).toBeLessThan(2000);
+
+      // Level 1 exports
+      expect(importMap.has("RootUtil")).toBe(true);
+
+      // Level 2 exports (via star re-export)
+      expect(importMap.has("SubHelper")).toBe(true);
+
+      // Level 3 exports (via nested star re-export)
+      expect(importMap.has("Button")).toBe(true);
+      expect(importMap.has("Modal")).toBe(true);
+
+      // Level 4 exports (via deeply nested star re-export)
+      expect(importMap.has("Input")).toBe(true);
+      expect(importMap.has("Select")).toBe(true);
+
+      // Verify paths point to actual source files (not intermediate barrels)
+      const buttonPath = importMap.get("Button");
+      expect(buttonPath).toContain("Button.js");
+      expect(buttonPath).toContain("components");
+
+      const inputPath = importMap.get("Input");
+      expect(inputPath).toContain("Input.js");
+      expect(inputPath).toContain("forms");
+    });
   });
 
   describe("Edge Cases", () => {
