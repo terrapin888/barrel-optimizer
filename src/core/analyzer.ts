@@ -66,10 +66,7 @@ const INDEX_FILES = ["index.js", "index.mjs", "index.ts", "index.tsx"];
  * @param specifier - The module specifier (e.g., './Button' or './utils/index')
  * @returns The resolved absolute file path, or null if not found
  */
-async function resolveModulePath(
-  basePath: string,
-  specifier: string
-): Promise<string | null> {
+async function resolveModulePath(basePath: string, specifier: string): Promise<string | null> {
   // Handle relative specifiers only (we don't resolve bare specifiers here)
   if (!specifier.startsWith(".")) {
     return null;
@@ -165,10 +162,7 @@ function resolveConditionalExport(value: unknown): string | undefined {
  * @param rootPath - The root path to search from (usually project root)
  * @returns The absolute path to the library's entry point
  */
-async function resolveLibraryEntryPoint(
-  libraryName: string,
-  rootPath: string
-): Promise<string> {
+async function resolveLibraryEntryPoint(libraryName: string, rootPath: string): Promise<string> {
   const nodeModulesPath = path.join(rootPath, "node_modules", libraryName);
   const packageJsonPath = path.join(nodeModulesPath, "package.json");
 
@@ -215,9 +209,7 @@ async function resolveLibraryEntryPoint(
 
   // Verify the entry point exists
   if (!(await fileExists(resolvedEntry))) {
-    throw new Error(
-      `Entry point not found for library: ${libraryName} at ${resolvedEntry}`
-    );
+    throw new Error(`Entry point not found for library: ${libraryName} at ${resolvedEntry}`);
   }
 
   return resolvedEntry;
@@ -268,8 +260,7 @@ async function parseModuleExports(filePath: string): Promise<ParsedExports> {
   // This is still faster than full AST parsing
 
   // Match: export { ... } from '...' or export { ... } from "..."
-  const reExportRegex =
-    /export\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g;
+  const reExportRegex = /export\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g;
   let match: RegExpExecArray | null;
 
   while ((match = reExportRegex.exec(content)) !== null) {
@@ -279,15 +270,18 @@ async function parseModuleExports(filePath: string): Promise<ParsedExports> {
     if (!namesStr || !source) continue;
 
     // Parse the names: "Foo, Bar as Baz, Qux"
-    const names = namesStr.split(",").map((name) => {
-      const trimmed = name.trim();
-      // Handle "Foo as Bar" - we want the exported name (Bar)
-      const asMatch = trimmed.match(/(\w+)\s+as\s+(\w+)/);
-      if (asMatch?.[2]) {
-        return asMatch[2]; // Return the aliased name
-      }
-      return trimmed;
-    }).filter((n): n is string => Boolean(n));
+    const names = namesStr
+      .split(",")
+      .map((name) => {
+        const trimmed = name.trim();
+        // Handle "Foo as Bar" - we want the exported name (Bar)
+        const asMatch = trimmed.match(/(\w+)\s+as\s+(\w+)/);
+        if (asMatch?.[2]) {
+          return asMatch[2]; // Return the aliased name
+        }
+        return trimmed;
+      })
+      .filter((n): n is string => Boolean(n));
 
     reExports.push({ names, source });
   }

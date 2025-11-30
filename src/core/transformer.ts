@@ -186,27 +186,21 @@ function absoluteToPackagePath(absolutePath: string): string {
  * Checks if an import declaration contains a namespace specifier (import * as X).
  */
 function hasNamespaceSpecifier(node: ImportDeclaration): boolean {
-  return node.specifiers.some(
-    (specifier) => specifier.type === "ImportNamespaceSpecifier"
-  );
+  return node.specifiers.some((specifier) => specifier.type === "ImportNamespaceSpecifier");
 }
 
 /**
  * Checks if an import declaration has a default import (import Foo from ...).
  */
 function hasDefaultSpecifier(node: ImportDeclaration): boolean {
-  return node.specifiers.some(
-    (specifier) => specifier.type === "ImportDefaultSpecifier"
-  );
+  return node.specifiers.some((specifier) => specifier.type === "ImportDefaultSpecifier");
 }
 
 /**
  * Extracts named import specifiers from an import declaration.
  * Returns only the named imports (not default or namespace).
  */
-function getNamedSpecifiers(
-  node: ImportDeclaration
-): Array<{ imported: string; local: string }> {
+function getNamedSpecifiers(node: ImportDeclaration): Array<{ imported: string; local: string }> {
   const result: Array<{ imported: string; local: string }> = [];
 
   for (const specifier of node.specifiers) {
@@ -264,11 +258,7 @@ function getNamedSpecifiers(
  * - 38 unit/integration tests including real es-toolkit transformations
  * - Stress tests with 500+ components and 1000+ files
  */
-function createNamedImport(
-  imported: string,
-  local: string,
-  source: string
-): ImportDeclaration {
+function createNamedImport(imported: string, local: string, source: string): ImportDeclaration {
   const declaration: PartialImportDeclaration = {
     type: "ImportDeclaration",
     span: { start: 0, end: 0, ctxt: 0 },
@@ -331,9 +321,7 @@ function transformImportDeclaration(
   // Check if this import is from a target library barrel (exact match only)
   // We only want to transform barrel imports like `import { X } from '@mui/material'`
   // NOT subpath imports like `import { X } from '@mui/material/styles'` which are already optimized
-  const isBarrelImport = config.targetLibraries.some(
-    (lib) => source === lib
-  );
+  const isBarrelImport = config.targetLibraries.some((lib) => source === lib);
 
   if (!isBarrelImport) {
     return null; // Not a barrel import, leave unchanged
@@ -368,9 +356,7 @@ function transformImportDeclaration(
 
   // If there are no named specifiers (only default import), skip
   if (namedSpecifiers.length === 0) {
-    logger.debug(
-      `Skipping import with no named specifiers: import from '${source}'`
-    );
+    logger.debug(`Skipping import with no named specifiers: import from '${source}'`);
     return null;
   }
 
@@ -382,9 +368,7 @@ function transformImportDeclaration(
   // The default import (MUI) must be kept pointing to the barrel file
   const hasDefault = hasDefaultSpecifier(node);
   if (hasDefault) {
-    const defaultSpec = node.specifiers.find(
-      (s) => s.type === "ImportDefaultSpecifier"
-    );
+    const defaultSpec = node.specifiers.find((s) => s.type === "ImportDefaultSpecifier");
     if (defaultSpec) {
       // Preserve default import as-is, pointing to original barrel file.
       // We reuse the existing specifier node which already has correct ctxt values.
@@ -396,7 +380,7 @@ function transformImportDeclaration(
         type: "ImportDeclaration",
         span: { start: 0, end: 0, ctxt: 0 },
         specifiers: [defaultSpec], // Reuse parsed node - already has ctxt
-        source: node.source,       // Keep original source for default imports
+        source: node.source, // Keep original source for default imports
         typeOnly: node.typeOnly,
       };
       newImports.push(defaultImport as ImportDeclaration);
@@ -411,8 +395,7 @@ function transformImportDeclaration(
       // Export not found in ImportMap
       // This could be a type-only export or an export we missed
       logger.warn(
-        `Could not resolve '${imported}' from '${source}'. ` +
-          `Keeping original import.`
+        `Could not resolve '${imported}' from '${source}'. ` + `Keeping original import.`
       );
 
       // Create a named import to the original source for unresolved imports
@@ -489,7 +472,9 @@ export function transformCode(
       decorators: true,
     });
   } catch (error) {
-    logger.warn(`Failed to parse ${filename}: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `Failed to parse ${filename}: ${error instanceof Error ? error.message : String(error)}`
+    );
     return result;
   }
 
@@ -499,12 +484,7 @@ export function transformCode(
 
   for (const item of ast.body) {
     if (item.type === "ImportDeclaration") {
-      const transformed = transformImportDeclaration(
-        item,
-        config,
-        logger,
-        result
-      );
+      const transformed = transformImportDeclaration(item, config, logger, result);
 
       if (transformed !== null) {
         // Replace the original import with the transformed imports
@@ -535,7 +515,9 @@ export function transformCode(
     result.code = output.code;
     result.transformed = true;
   } catch (error) {
-    logger.warn(`Failed to print transformed code: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `Failed to print transformed code: ${error instanceof Error ? error.message : String(error)}`
+    );
     return { ...result, transformed: false };
   }
 
@@ -552,9 +534,7 @@ function inferTargetLibraries(importMap: ImportMap): string[] {
   for (const filePath of importMap.values()) {
     // Extract library name from node_modules path
     // e.g., /path/to/node_modules/@toss/ui/dist/Button.js → @toss/ui
-    const nodeModulesMatch = filePath.match(
-      /node_modules[/\\](@[^/\\]+[/\\][^/\\]+|[^/\\]+)/
-    );
+    const nodeModulesMatch = filePath.match(/node_modules[/\\](@[^/\\]+[/\\][^/\\]+|[^/\\]+)/);
 
     if (nodeModulesMatch?.[1]) {
       libraries.add(nodeModulesMatch[1].replace(/\\/g, "/"));

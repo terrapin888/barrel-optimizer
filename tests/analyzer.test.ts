@@ -314,10 +314,7 @@ describe("Analyzer Module", () => {
 
       const { analyzeLibraries } = await import("../src/core/analyzer.js");
 
-      const libraryMaps = await analyzeLibraries(
-        ["@test/lib-a", "@test/lib-b"],
-        "/project"
-      );
+      const libraryMaps = await analyzeLibraries(["@test/lib-a", "@test/lib-b"], "/project");
 
       // Should return a Map with library name as key
       expect(libraryMaps.size).toBe(2);

@@ -503,10 +503,7 @@ export default MyComponent;
       const transform = createTransformer(importMap, ["@mui/material"]);
 
       // Call with filename
-      const result = transform(
-        `import { Button } from '@mui/material';`,
-        "MyComponent.tsx"
-      );
+      const result = transform(`import { Button } from '@mui/material';`, "MyComponent.tsx");
 
       expect(result.transformed).toBe(true);
     });
@@ -558,10 +555,10 @@ export default MyComponent;
 
       // Various types of malformed code
       const malformedCodes = [
-        `import { Button } from '@mui/material' const x`,  // Missing semicolon in unusual place
-        `import { from '@mui/material';`,                   // Missing identifier
-        `import @mui/material;`,                            // Invalid syntax
-        `{{{`,                                              // Just brackets
+        `import { Button } from '@mui/material' const x`, // Missing semicolon in unusual place
+        `import { from '@mui/material';`, // Missing identifier
+        `import @mui/material;`, // Invalid syntax
+        `{{{`, // Just brackets
       ];
 
       for (const badCode of malformedCodes) {
@@ -666,9 +663,7 @@ export default foo;
 
   describe("Path Conversion Edge Cases", () => {
     it("should handle paths without node_modules", () => {
-      const importMap = createMockImportMap([
-        ["Button", "/some/random/path/Button.js"],
-      ]);
+      const importMap = createMockImportMap([["Button", "/some/random/path/Button.js"]]);
 
       const code = `import { Button } from '@mui/material';`;
 

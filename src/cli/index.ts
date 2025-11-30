@@ -22,7 +22,9 @@ import { transformCode, type TransformResult } from "../core/transformer.js";
 // Dynamically load version from package.json
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageJsonPath = path.resolve(__dirname, "../../package.json");
-const packageJson = JSON.parse(fsSync.readFileSync(packageJsonPath, "utf-8")) as { version: string };
+const packageJson = JSON.parse(fsSync.readFileSync(packageJsonPath, "utf-8")) as {
+  version: string;
+};
 const VERSION = packageJson.version;
 
 /**
@@ -100,9 +102,7 @@ class Spinner {
         this.current = (this.current + 1) % this.frames.length;
         process.stdout.clearLine?.(0);
         process.stdout.cursorTo?.(0);
-        process.stdout.write(
-          `${chalk.cyan(this.frames[this.current])} ${this.message}`
-        );
+        process.stdout.write(`${chalk.cyan(this.frames[this.current])} ${this.message}`);
       }, 80);
     } else {
       console.log(`${chalk.cyan("...")} ${this.message}`);
@@ -229,16 +229,16 @@ async function analyzeCommand(
     spinner.stop(true);
   } catch (error) {
     spinner.stop(false);
-    log.error(`Failed to analyze library: ${error instanceof Error ? error.message : String(error)}`);
+    log.error(
+      `Failed to analyze library: ${error instanceof Error ? error.message : String(error)}`
+    );
     process.exit(1);
   }
 
   const duration = Date.now() - startTime;
 
   console.log();
-  log.success(
-    `Found ${chalk.bold.green(importMap.size)} exports in ${duration}ms`
-  );
+  log.success(`Found ${chalk.bold.green(importMap.size)} exports in ${duration}ms`);
   console.log();
 
   // Display exports grouped by file
@@ -330,7 +330,9 @@ async function optimizeCommand(
     analyzeSpinner.stop(true);
   } catch (error) {
     analyzeSpinner.stop(false);
-    log.error(`Failed to analyze libraries: ${error instanceof Error ? error.message : String(error)}`);
+    log.error(
+      `Failed to analyze libraries: ${error instanceof Error ? error.message : String(error)}`
+    );
     process.exit(1);
   }
 
@@ -370,13 +372,15 @@ async function optimizeCommand(
       const content = await fs.readFile(file, "utf-8");
       const result = transformCode(content, mergedImportMap, libraries, {
         filename: file,
-        logger: options.verbose ? {
-          warn: (msg) => log.warn(msg),
-          debug: (msg) => log.dim(msg),
-        } : {
-          warn: () => {},
-          debug: () => {},
-        },
+        logger: options.verbose
+          ? {
+              warn: (msg) => log.warn(msg),
+              debug: (msg) => log.dim(msg),
+            }
+          : {
+              warn: () => {},
+              debug: () => {},
+            },
       });
 
       results.push({
@@ -390,7 +394,9 @@ async function optimizeCommand(
         await fs.writeFile(file, result.code, "utf-8");
       }
     } catch (error) {
-      log.warn(`Failed to process ${file}: ${error instanceof Error ? error.message : String(error)}`);
+      log.warn(
+        `Failed to process ${file}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -468,15 +474,11 @@ async function optimizeCommand(
 
   if (!options.write && transformedFiles.length > 0) {
     console.log();
-    log.info(
-      `Run with ${chalk.cyan("--write")} to apply changes to files.`
-    );
+    log.info(`Run with ${chalk.cyan("--write")} to apply changes to files.`);
   }
 
   if (options.write && transformedFiles.length > 0) {
-    log.success(
-      `${transformedFiles.length} file(s) updated successfully!`
-    );
+    log.success(`${transformedFiles.length} file(s) updated successfully!`);
   }
 }
 
@@ -518,12 +520,14 @@ program
 program
   .command("build <target>")
   .description("Alias for optimize --write")
-  .option("-l, --library <names...>", "Target barrel libraries (e.g., @toss/ui, es-toolkit, @mui/material)", ["@toss/ui"])
+  .option(
+    "-l, --library <names...>",
+    "Target barrel libraries (e.g., @toss/ui, es-toolkit, @mui/material)",
+    ["@toss/ui"]
+  )
   .option("--cwd <path>", "Working directory", process.cwd())
   .option("-v, --verbose", "Show detailed output", false)
-  .action((target, options) =>
-    optimizeCommand(target, { ...options, write: true })
-  );
+  .action((target, options) => optimizeCommand(target, { ...options, write: true }));
 
 // Parse arguments
 program.parse();
