@@ -52,6 +52,8 @@ import { Button } from '@toss/ui';
 
 **Barrel Optimizer** transforms barrel imports into **direct file imports** at build time.
 
+> **🔍 Auditing Value:** The **Analyzer** doesn't just look for file paths. It acts as a CI audit tool by verifying that each module is safely tree-shakable. In large monorepos, this capability saves hundreds of hours of manual dependency tracing.
+
 ![Demo Screenshot](./assets/demo-screenshot.png)
 
 <details>

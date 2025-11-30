@@ -10,3 +10,5 @@ playground/node_modules
 .vite_test_app
 .threejs_bench
 .real_app_bench
+.berry_bench
+.react_admin_bench
