@@ -57,6 +57,89 @@ const defaultLogger: Logger = {
 };
 
 /**
+ * Converts an absolute file path from node_modules to a package-relative import path.
+ *
+ * Example transformations:
+ * - /path/node_modules/@mui/material/esm/Button/Button.js → @mui/material/Button
+ * - /path/node_modules/@toss/ui/dist/Button.js → @toss/ui/Button
+ * - /path/node_modules/lodash-es/chunk.js → lodash-es/chunk
+ *
+ * @param absolutePath - The absolute file path to convert
+ * @returns The package-relative import path
+ */
+function absoluteToPackagePath(absolutePath: string): string {
+  // Normalize path separators
+  const normalizedPath = absolutePath.replace(/\\/g, "/");
+
+  // Find node_modules in the path
+  const nodeModulesIndex = normalizedPath.lastIndexOf("node_modules/");
+  if (nodeModulesIndex === -1) {
+    // Not in node_modules, return as-is (shouldn't happen in normal usage)
+    return normalizedPath;
+  }
+
+  // Get the part after node_modules/
+  const afterNodeModules = normalizedPath.slice(nodeModulesIndex + "node_modules/".length);
+
+  // Split into segments
+  const segments = afterNodeModules.split("/");
+
+  // Determine package name (scoped packages have 2 segments: @scope/name)
+  let packageName: string;
+  let pathAfterPackage: string[];
+
+  const firstSegment = segments[0];
+  if (firstSegment && firstSegment.startsWith("@")) {
+    // Scoped package: @scope/name
+    packageName = `${firstSegment}/${segments[1] ?? ""}`;
+    pathAfterPackage = segments.slice(2);
+  } else {
+    // Non-scoped package
+    packageName = firstSegment ?? "";
+    pathAfterPackage = segments.slice(1);
+  }
+
+  // Common distribution folder names to strip
+  const distFolders = ["dist", "esm", "cjs", "lib", "build", "es", "umd", "module"];
+
+  // Remove distribution folder if present
+  const firstPathSegment = pathAfterPackage[0];
+  if (pathAfterPackage.length > 0 && firstPathSegment && distFolders.includes(firstPathSegment)) {
+    pathAfterPackage = pathAfterPackage.slice(1);
+  }
+
+  // Get the file name and remove extension
+  if (pathAfterPackage.length > 0) {
+    const lastSegment = pathAfterPackage[pathAfterPackage.length - 1] ?? "";
+    // Remove .js, .mjs, .cjs, .ts, .tsx, .jsx extensions
+    const nameWithoutExt = lastSegment.replace(/\.(js|mjs|cjs|ts|tsx|jsx)$/, "");
+    pathAfterPackage[pathAfterPackage.length - 1] = nameWithoutExt;
+
+    // If the file is an index file, remove it (the directory import is sufficient)
+    if (nameWithoutExt === "index") {
+      pathAfterPackage = pathAfterPackage.slice(0, -1);
+    }
+
+    // If the path ends with a directory name that matches the file name,
+    // we can use the directory import (e.g., Button/Button → Button)
+    if (pathAfterPackage.length >= 2) {
+      const dirName = pathAfterPackage[pathAfterPackage.length - 2];
+      const fileName = pathAfterPackage[pathAfterPackage.length - 1];
+      if (dirName === fileName) {
+        pathAfterPackage = pathAfterPackage.slice(0, -1);
+      }
+    }
+  }
+
+  // Construct the final import path
+  if (pathAfterPackage.length === 0) {
+    return packageName;
+  }
+
+  return `${packageName}/${pathAfterPackage.join("/")}`;
+}
+
+/**
  * Checks if an import declaration contains a namespace specifier (import * as X).
  */
 function hasNamespaceSpecifier(node: ImportDeclaration): boolean {
@@ -100,37 +183,6 @@ function getNamedSpecifiers(
   }
 
   return result;
-}
-
-/**
- * Creates an ImportDeclaration AST node with a default import.
- */
-function createDefaultImport(localName: string, source: string): ImportDeclaration {
-  return {
-    type: "ImportDeclaration",
-    span: { start: 0, end: 0, ctxt: 0 },
-    specifiers: [
-      {
-        type: "ImportDefaultSpecifier",
-        span: { start: 0, end: 0, ctxt: 0 },
-        local: {
-          type: "Identifier",
-          span: { start: 0, end: 0, ctxt: 0 },
-          value: localName,
-          optional: false,
-          ctxt: 0,
-        },
-      },
-    ],
-    source: {
-      type: "StringLiteral",
-      span: { start: 0, end: 0, ctxt: 0 },
-      value: source,
-      raw: `"${source}"`,
-    },
-    typeOnly: false,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
 }
 
 /**
@@ -197,13 +249,15 @@ function transformImportDeclaration(
 ): ImportDeclaration[] | null {
   const source = node.source.value;
 
-  // Check if this import is from a target library
-  const isTargetLibrary = config.targetLibraries.some(
-    (lib) => source === lib || source.startsWith(`${lib}/`)
+  // Check if this import is from a target library barrel (exact match only)
+  // We only want to transform barrel imports like `import { X } from '@mui/material'`
+  // NOT subpath imports like `import { X } from '@mui/material/styles'` which are already optimized
+  const isBarrelImport = config.targetLibraries.some(
+    (lib) => source === lib
   );
 
-  if (!isTargetLibrary) {
-    return null; // Not our target, leave unchanged
+  if (!isBarrelImport) {
+    return null; // Not a barrel import, leave unchanged
   }
 
   // BAIL-OUT: Namespace imports (import * as X from '...')
@@ -280,13 +334,14 @@ function transformImportDeclaration(
       continue;
     }
 
-    // Create the optimized import path
-    // Convert Windows paths to forward slashes
-    const importPath = resolvedPath.replace(/\\/g, "/");
+    // Convert absolute path to package-relative import path
+    // e.g., /path/node_modules/@mui/material/esm/Button/Button.js → @mui/material/Button
+    const importPath = absoluteToPackagePath(resolvedPath);
 
-    // Create a default import with the local name (handles aliases)
-    // import { Button as TossBtn } → import TossBtn from '...'
-    newImports.push(createDefaultImport(local, importPath));
+    // Use named import to preserve the export name
+    // import { Button as TossBtn } from '@mui/material' → import { Button as TossBtn } from '@mui/material/Button'
+    // This is safer than default imports because many exports are named, not default
+    newImports.push(createNamedImport(imported, local, importPath));
     optimizedRewrites.push(`${imported} → ${importPath}`);
   }
 
